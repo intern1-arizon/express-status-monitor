@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 let lastDatabaseLog = 0;
 
-module.exports = (io, span, config) => {
+const gatherOsMetrics = (io, span, config) => {
   const defaultResponse = {
     2: 0,
     3: 0,
@@ -72,4 +72,9 @@ module.exports = (io, span, config) => {
 
     sendMetrics(io, span);
   });
+
+  // Schedule the next gathering
+  setTimeout(() => gatherOsMetrics(io, span, config), span.interval * 1000);
 };
+
+module.exports = gatherOsMetrics;
