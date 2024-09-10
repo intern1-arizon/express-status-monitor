@@ -1,9 +1,11 @@
 const middlewareWrapper = require('./middleware-wrapper');
 const gatherOsMetrics = require('./helpers/gather-os-metrics');
+const validate = require('./helpers/validate');
 
 let metricGatheringInterval;
+let config;
 
-const startMetricGathering = (config) => {
+const startMetricGathering = () => {
   if (metricGatheringInterval) {
     clearInterval(metricGatheringInterval);
   }
@@ -16,9 +18,16 @@ const startMetricGathering = (config) => {
   gatherOsMetrics(null, config.spans[0], config);
 };
 
-module.exports = (appConfig) => {
-  const config = require('./helpers/validate')(appConfig);
-  startMetricGathering(config);
-  
+const statusMonitor = (appConfig) => {
+  config = validate(appConfig);
   return middlewareWrapper(config);
 };
+
+statusMonitor.startLogging = () => {
+  if (!config) {
+    throw new Error('Status monitor config not initialized. Call statusMonitor() first.');
+  }
+  startMetricGathering();
+};
+
+module.exports = statusMonitor;
