@@ -76,7 +76,6 @@ const middlewareWrapper = config => {
    */
   middleware.middleware = middleware;
   middleware.pageRoute = (req, res) => {
-    socketIoInit(req.socket.server, validatedConfig);
     healthChecker(validatedConfig.healthChecks).then(results => {
       data.healthCheckResults = results;
       res.send(render(data));
