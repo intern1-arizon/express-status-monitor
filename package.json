@@ -1,20 +1,22 @@
 {
-  "name": "express-status-monitor",
-  "version": "1.3.4",
-  "description": "Realtime Monitoring for Express-based Node applications",
+  "name": "enhanced-express-monitor",
+  "version": "1.0.0",
+  "description": "Enhanced Express Status Monitor with database logging",
   "main": "index.js",
-  "homepage": "https://dynobase.com",
+  "homepage": "https://github.com/intern1-arizon/express-status-monitor",
   "keywords": [
     "node",
     "status",
     "monitoring",
     "express",
-    "charts"
+    "charts",
+    "database",
+    "logging"
   ],
   "engines": {
-    "node": ">=8"
+    "node": ">=12"
   },
-  "author": "Rafal Wilinski <raf.wilinski@gmail.com> (https://dynobase.com)",
+  "author": "Arizon <intern@arizonsystems.com>",
   "contributors": [
     {
       "name": "Julien Breux",
@@ -59,7 +61,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/RafalWilinski/express-status-monitor.git"
+    "url": "https://github.com/intern1-arizon/express-status-monitor.git"
   },
   "license": "MIT",
   "dependencies": {
@@ -78,7 +80,8 @@
     "test-ci": "mocha --recursive",
     "test": "mocha --recursive --watch",
     "example": "npm i && npm i --prefix examples && npm start --prefix examples",
-    "eslint": "eslint ."
+    "eslint": "eslint .",
+    "postinstall": "node prisma-setup.js"
   },
   "devDependencies": {
     "chai": "4.3.6",
@@ -86,9 +89,5 @@
     "mocha": "9.2.1",
     "prisma": "^5.18.0",
     "sinon": "13.0.1"
-  },
-  "funding": {
-    "type": "individual",
-    "url": "http://dynobase.com/buy"
   }
 }

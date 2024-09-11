@@ -1,43 +1,33 @@
-# express-status-monitor
+# enhanced-express-monitor
 
-[![express-status-monitor on npm](https://img.shields.io/npm/v/express-status-monitor.svg)](https://www.npmjs.com/express-status-monitor)
+[![enhanced-express-monitor on npm](https://img.shields.io/npm/v/enhanced-express-monitor.svg)](https://www.npmjs.com/enhanced-express-monitor)
+[![npm](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)[![express-status-monitor on npm](https://img.shields.io/npm/v/express-status-monitor.svg)](https://www.npmjs.com/express-status-monitor)
 [![npm](https://img.shields.io/npm/dt/express-status-monitor.svg)](https://img.shields.io/npm/dt/express-status-monitor.svg)
 [![CircleCI](https://img.shields.io/circleci/project/github/RafalWilinski/express-status-monitor/master.svg)](https://circleci.com/gh/RafalWilinski/express-status-monitor)
 [![Open Source Helpers](https://www.codetriage.com/rafalwilinski/express-status-monitor/badges/users.svg)](https://www.codetriage.com/rafalwilinski/express-status-monitor)
 
-Simple, self-hosted module based on Socket.io and Chart.js to report realtime server metrics for Express-based node servers.
+Enhanced version of express-status-monitor with database logging capabilities using Prisma and SQL Server.
 
 ![Monitoring Page](http://i.imgur.com/AHizEWq.gif "Monitoring Page")
 
-## Demo
-
-[Demo available here](https://hackathon-starter.walcony.com/status)
-
-## Support for other Node.js frameworks
-
-* [koa-monitor](https://github.com/capaj/koa-monitor) for Koa
-* [hapijs-status-monitor](https://github.com/ziyasal/hapijs-status-monitor) for hapi.js
-
 ## Installation & setup
 
-1. Run `npm install express-status-monitor --save`
+1. Run `npm install enhanced-express-monitor --save`
 2. Before any other middleware or router add following line:
-`app.use(require('express-status-monitor')());`
+`app.use(require('enhanced-express-monitor')());`
 3. Run server and go to `/status`
 
-Note: This plugin works on Node versions > 4.x
+Note: This plugin works on Node versions >= 12.x
 
 ## Database Setup
 
-This package now includes database logging using Prisma with SQL Server. Follow these steps to set up:
+This package includes database logging using Prisma with SQL Server. Follow these steps to set up:
 
 1. In your main project, create a `.env` file in the root directory if it doesn't exist already. Add the following line, replacing the placeholders with your actual database details:
 
    ```
    DATABASE_URL="sqlserver://localhost:1433;database=your_database;user=your_username;password=your_password;trustServerCertificate=true"
    ```
-
-Replace username, password, localhost, and your_database_name with your actual database credentials.
 
 2. In your main project's root directory, create a `prisma` folder if it doesn't exist. Inside this folder, create a `schema.prisma` file with the following content:
 
@@ -89,7 +79,7 @@ In your main project, initialize the middleware in your Express app:
 
 ```javascript
 const express = require('express');
-const statusMonitor = require('express-status-monitor');
+const statusMonitor = require('enhanced-express-monitor');
 
 const app = express();
 
@@ -121,19 +111,20 @@ Monitor can be configured by passing options object into `expressMonitor` constr
 
 Default config:
 ```javascript
-title: 'Express Status',  // Default title
-theme: 'default.css',     // Default styles
+title: 'Express Status',    // Default title
+theme: 'default.css',       // Default styles
 path: '/status',
-socketPath: '/socket.io', // In case you use a custom path
+databaseLoggingInterval: 60 // Default database logging interval
+socketPath: '/socket.io',   // In case you use a custom path
 websocket: existingSocketIoInstance,
 spans: [{
-  interval: 1,            // Every second
-  retention: 60           // Keep 60 datapoints in memory
+  interval: 1,              // Every second
+  retention: 60             // Keep 60 datapoints in memory
 }, {
-  interval: 5,            // Every 5 seconds
+  interval: 5,              // Every 5 seconds
   retention: 60
 }, {
-  interval: 15,           // Every 15 seconds
+  interval: 15,             // Every 15 seconds
   retention: 60
 }],
 chartVisibility: {
