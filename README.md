@@ -1,9 +1,7 @@
 # enhanced-express-monitor
 
 [![enhanced-express-monitor on npm](https://img.shields.io/npm/v/enhanced-express-monitor.svg)](https://www.npmjs.com/enhanced-express-monitor)
-[![npm](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)[![express-status-monitor on npm](https://img.shields.io/npm/v/express-status-monitor.svg)](https://www.npmjs.com/express-status-monitor)
-[![npm](https://img.shields.io/npm/dt/express-status-monitor.svg)](https://img.shields.io/npm/dt/express-status-monitor.svg)
-[![CircleCI](https://img.shields.io/circleci/project/github/RafalWilinski/express-status-monitor/master.svg)](https://circleci.com/gh/RafalWilinski/express-status-monitor)
+[![npm](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)](https://img.shields.io/npm/dt/enhanced-express-monitor.svg)
 [![Open Source Helpers](https://www.codetriage.com/rafalwilinski/express-status-monitor/badges/users.svg)](https://www.codetriage.com/rafalwilinski/express-status-monitor)
 
 Enhanced version of express-status-monitor with database logging capabilities using Prisma and SQL Server.
