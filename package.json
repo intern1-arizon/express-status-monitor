@@ -1,6 +1,6 @@
 {
   "name": "enhanced-express-monitor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Enhanced Express Status Monitor with database logging",
   "main": "index.js",
   "homepage": "https://github.com/intern1-arizon/express-status-monitor",
