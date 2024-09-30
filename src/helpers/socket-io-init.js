@@ -1,12 +1,24 @@
 const socketIo = require('socket.io');
 const gatherOsMetrics = require('./gather-os-metrics');
 
+const getData = require('./perodical-data');
+
+
 let io;
 
 const addSocketEvents = (socket, config) => {
   socket.emit('esm_start', config.spans);
-  socket.on('esm_change', () => {
-    socket.emit('esm_start', config.spans);
+
+  socket.on('esm_change', async data => {
+    if (data.type === 'Live') {
+      socket.emit('esm_start', config.spans);
+
+    } else {
+      const result = await getData(data.period, config.databaseFile);
+
+      socket.emit('esm_start_static', result);
+
+    }
   });
 };
 

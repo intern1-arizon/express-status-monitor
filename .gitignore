@@ -4,3 +4,4 @@ coverage
 *.log
 .gitignore
 .env
+examples/data.json

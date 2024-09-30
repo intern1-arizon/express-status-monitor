@@ -5,4 +5,6 @@ module.exports = (io, span) => {
     interval: span.interval,
     retention: span.retention,
   });
+
+  
 };

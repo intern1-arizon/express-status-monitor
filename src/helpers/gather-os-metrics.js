@@ -3,9 +3,8 @@ const os = require('os');
 const v8 = require('v8');
 const sendMetrics = require('./send-metrics');
 const debug = require('debug')('express-status-monitor');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const fs = require('fs');
+const path = require('path');
 
 let lastDatabaseLog = 0;
 
@@ -45,36 +44,82 @@ module.exports = (io, span, config) => {
         span.responses.push(defaultResponse);
       }
 
+      if (span.os.length >= span.retention) span.os.shift();
+      if (span.responses[0] && span.responses.length > span.retention) span.responses.shift();
+
       // Database logging
       if (stat.timestamp - lastDatabaseLog >= config.databaseLoggingInterval * 1000) {
         lastDatabaseLog = stat.timestamp;
-        prisma.statusLog.create({
-          data: {
-            timestamp: new Date(stat.timestamp),
-            cpuCount: os.cpus().length,
+        const databaseFile = path.resolve(config.databaseFile);
+
+        // Reading existing data from the JSON file
+        fs.readFile(databaseFile, 'utf8', (readErr, data) => {
+          if (readErr) {
+            debug('Error reading the JSON file:', readErr);
+            return;
+          }
+
+          let jsonData;
+
+          try {
+            jsonData = JSON.parse(data); // Parse existing data
+          } catch (parseErr) {
+            debug('Error parsing the JSON file:', parseErr);
+            jsonData = {
+              os: [],
+              responses: [],
+              interval: span.interval || 1,
+              retention: span.retention || 60,
+            }; // If parsing fails or data is empty, initialize an empty structure
+          }
+
+          // Initialize os and responses arrays if they don't exist
+          jsonData.os = jsonData.os || [];
+          jsonData.responses = jsonData.responses || [];
+
+          // Calculate the date 6 months ago
+          const sixMonthsAgo = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000; // Approx. 6 months in milliseconds
+
+          // Filter out OS entries older than 6 months
+          jsonData.os = jsonData.os.filter(entry => entry.timestamp >= sixMonthsAgo);
+
+          // Filter out response entries older than 6 months
+          jsonData.responses = jsonData.responses.filter(entry => entry.timestamp >= sixMonthsAgo);
+
+          // Append the new OS data (pidusage stats)
+          jsonData.os.push({
+            cpu: stat.cpu,
             memory: stat.memory,
+            load: stat.load,
+            timestamp: stat.timestamp,
             pid: stat.pid,
-            ppid: stat.ppid || 0,
-            ctime: BigInt(stat.ctime || 0),
-            elapsed: stat.elapsed || 0,
-            load1: stat.load[0],
-            load5: stat.load[1],
-            load15: stat.load[2],
-            heapTotal: BigInt(stat.heap.total_heap_size),
-            heapUsed: BigInt(stat.heap.used_heap_size),
-            response2xx: last[2] || 0,
-            response3xx: last[3] || 0,
-            response4xx: last[4] || 0,
-            response5xx: last[5] || 0,
-            responseMean: last.mean || 0,
-          },
-        }).catch(error => {
-          debug('Error logging to database:', error);
+            ppid: stat.ppid,
+            ctime: stat.ctime,
+            elapsed: stat.elapsed,
+            heap: stat.heap,
+          });
+
+          // Append the new response data
+          jsonData.responses.push({
+            2: defaultResponse['2'],
+            3: defaultResponse['3'],
+            4: defaultResponse['4'],
+            5: defaultResponse['5'],
+            count: defaultResponse.count,
+            mean: defaultResponse.mean,
+            timestamp: Date.now(),
+          });
+
+          // Write the updated data back to the JSON file
+          fs.writeFile(databaseFile, JSON.stringify(jsonData, null, 2), 'utf8', writeErr => {
+            if (writeErr) {
+              debug('Error writing to the JSON file:', writeErr);
+            } else {
+              debug('Successfully appended to the JSON file.');
+            }
+          });
         });
       }
-
-      if (span.os.length >= span.retention) span.os.shift();
-      if (span.responses[0] && span.responses.length > span.retention) span.responses.shift();
 
       sendMetrics(io, span);
     } catch (error) {

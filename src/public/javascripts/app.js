@@ -13,9 +13,14 @@ Chart.defaults.global.elements.line.backgroundColor = 'rgba(0,0,0,0)';
 Chart.defaults.global.elements.line.borderColor = 'rgba(0,0,0,0.9)';
 Chart.defaults.global.elements.line.borderWidth = 2;
 
+let statusType = 'Live';
+let statusLiveType = 0;
+let statusPeriodicalType = '7days';
+
+
 var socket = io(location.protocol + '//' + location.hostname + ':' + (port || location.port), {
     path: socketPath,
-    transports: ["websocket"]
+    transports: ['websocket']
 });
 var defaultSpan = 0;
 var spans = [];
@@ -137,14 +142,61 @@ var onSpanChange = function (e) {
     e.target.classList.add('active');
     defaultSpan = parseInt(e.target.id, 10);
 
-    var otherSpans = document.getElementsByTagName('span');
+    // Get all spans only from the parent element
+    var otherSpans = e.target.parentElement.getElementsByTagName('span');
 
     for (var i = 0; i < otherSpans.length; i++) {
         if (otherSpans[i] !== e.target) otherSpans[i].classList.remove('active');
     }
 
-    socket.emit('esm_change');
+    socket.emit('esm_change', {
+       type: 'Live'
+    });
+    statusType = 'Live';
+    statusLiveType = e.target.id;
 };
+
+
+var onSpanChangeType = function (e, type) {
+    e.target.classList.add('active');
+    defaultSpan = parseInt(e.target.id, 10);
+
+    // Get all spans only from the parent element
+    var otherSpans = e.target.parentElement.getElementsByTagName('span');
+
+    for (var i = 0; i < otherSpans.length; i++) {
+        if (otherSpans[i] !== e.target) otherSpans[i].classList.remove('active');
+    }
+    defaultSpan = 0;
+    socket.emit('esm_change', {
+        type,
+        period: '7days'
+    });
+    statusType = type;
+
+};
+
+
+var onSpanChangeStaticType = function (e) {
+    e.target.classList.add('active');
+    defaultSpan = parseInt(e.target.id, 10);
+
+    // Get all spans only from the parent element
+    var otherSpans = e.target.parentElement.getElementsByTagName('span');
+
+    for (var i = 0; i < otherSpans.length; i++) {
+        if (otherSpans[i] !== e.target) otherSpans[i].classList.remove('active');
+    }
+    defaultSpan = 0;
+    socket.emit('esm_change', {
+        type: 'Periodical',
+        period: e.target.id
+    });
+    statusType = 'Periodical';
+    statusPeriodicalType = e.target.id;
+
+};
+
 
 socket.on('esm_start', function (data) {
     // Remove last element of Array because it contains malformed responses data.
@@ -233,104 +285,260 @@ socket.on('esm_start', function (data) {
         chart.update();
     });
 
+
+    var spanControls = document.getElementById('span-controls');
+    // Remove all child elements
+
+    spanControls.innerHTML = '';
+    data.forEach(function (span, index) {
+        spans.push({
+            retention: span.retention,
+            interval: span.interval,
+        });
+
+        var spanNode = document.createElement('span');
+        var textNode = document.createTextNode((span.retention * span.interval) / 60 + 'M'); // eslint-disable-line
+
+        spanNode.appendChild(textNode);
+        spanNode.setAttribute('id', index);
+        spanNode.onclick = onSpanChange;
+        spanControls.appendChild(spanNode);
+    });
+    spanControls.getElementsByTagName('span')[statusLiveType].classList.add('active');
+});
+
+
+socket.on('esm_start_static', function (data) {
+
+    // Remove last element of Array because it contains malformed responses data.
+    // To keep consistency we also remove os data.
+    console.log('esm_start_static', data, defaultSpan)
+    var lastOsMetric = data.os[data.os.length - 1];
+
+    cpuStat.textContent = '0.0%';
+    if (lastOsMetric) {
+        cpuStat.textContent = lastOsMetric.cpu.toFixed(1) + '%';
+    }
+
+    cpuChart.data.datasets[0].data = data.os.map(function (point) {
+        return point.cpu;
+    });
+    cpuChart.data.labels = data.os.map(addTimestamp);
+
+    memStat.textContent = '0.0MB';
+    if (lastOsMetric) {
+        memStat.textContent = lastOsMetric.memory.toFixed(1) + 'MB';
+    }
+
+    memChart.data.datasets[0].data = data.os.map(function (point) {
+        return point.memory;
+    });
+    memChart.data.labels = data.os.map(addTimestamp);
+
+    loadStat.textContent = '0.00';
+    if (lastOsMetric) {
+        loadStat.textContent = lastOsMetric.load[0].toFixed(2);
+    }
+
+    loadChart.data.datasets[0].data = data.os.map(function (point) {
+        return point.load[0];
+    });
+    loadChart.data.labels = data.os.map(addTimestamp);
+
+    heapChart.data.datasets[0].data = data.os.map(function (point) {
+        return point.heap.used_heap_size / 1024 / 1024;
+    });
+    heapChart.data.labels = data.os.map(addTimestamp);
+
+    eventLoopChart.data.datasets[0].data = data.os.map(function (point) {
+        if (point.loop) {
+            return point.loop.sum;
+        }
+        return 0;
+    });
+    eventLoopChart.data.labels = data.os.map(addTimestamp);
+
+    var lastResponseMetric = data.responses[data.responses.length - 1];
+
+    responseTimeStat.textContent = '0.00ms';
+    if (lastResponseMetric) {
+        responseTimeStat.textContent = lastResponseMetric.mean.toFixed(2) + 'ms';
+    }
+
+    responseTimeChart.data.datasets[0].data = data.responses.map(function (point) {
+        return point.mean;
+    });
+    responseTimeChart.data.labels = data.responses.map(addTimestamp);
+
+    for (var i = 0; i < 4; i++) {
+        statusCodesChart.data.datasets[i].data = data.responses.map(function (point) {
+            return point[i + 2];
+        });
+    }
+    statusCodesChart.data.labels = data.responses.map(addTimestamp);
+
+    if (data.responses.length >= 2) {
+        var deltaTime =
+            lastResponseMetric.timestamp -
+            data.responses[data.responses.length - 2].timestamp;
+
+        if (deltaTime < 1) deltaTime = 1000;
+        rpsStat.textContent = ((lastResponseMetric.count / deltaTime) * 1000).toFixed(2);
+        rpsChart.data.datasets[0].data = data.responses.map(function (point) {
+            return (point.count / deltaTime) * 1000;
+        });
+        rpsChart.data.labels = data.responses.map(addTimestamp);
+    }
+
+
     var spanControls = document.getElementById('span-controls');
 
-    if (data.length !== spans.length) {
-        data.forEach(function (span, index) {
-            spans.push({
-                retention: span.retention,
-                interval: span.interval,
-            });
+    // Remove all child elements
+    spanControls.innerHTML = '';
 
-            var spanNode = document.createElement('span');
-            var textNode = document.createTextNode((span.retention * span.interval) / 60 + 'M'); // eslint-disable-line
+    // Now add new span elements
+    var spanNode1 = document.createElement('span');
+    var textNode1 = document.createTextNode('7 Days');
 
-            spanNode.appendChild(textNode);
-            spanNode.setAttribute('id', index);
-            spanNode.onclick = onSpanChange;
-            spanControls.appendChild(spanNode);
-        });
-        document.getElementsByTagName('span')[0].classList.add('active');
+    spanNode1.appendChild(textNode1);
+    spanNode1.setAttribute('id', '7days');
+    spanNode1.onclick = onSpanChangeStaticType;
+    spanControls.appendChild(spanNode1);
+    if (statusPeriodicalType === '7days') {
+        spanControls.getElementsByTagName('span')[0].classList.add('active');
     }
+
+    var spanNode2 = document.createElement('span');
+    var textNode2 = document.createTextNode('30 Days');
+
+    spanNode2.appendChild(textNode2);
+    spanNode2.setAttribute('id', '30days');
+    spanNode2.onclick = onSpanChangeStaticType;
+    spanControls.appendChild(spanNode2);
+    if (statusPeriodicalType === '30days') {
+        spanControls.getElementsByTagName('span')[1].classList.add('active');
+    }
+
+    var spanNode3 = document.createElement('span');
+    var textNode3 = document.createTextNode('6 Months');
+
+    spanNode3.appendChild(textNode3);
+    spanNode3.setAttribute('id', '6months'); // Fixed the duplicate ID issue
+    spanNode3.onclick = onSpanChangeStaticType;
+    spanControls.appendChild(spanNode3);
+    if (statusPeriodicalType === '6months') {
+        spanControls.getElementsByTagName('span')[2].classList.add('active');
+    }
+
+
+    charts.forEach(function (chart) {
+        chart.update();
+    });
+
+
 });
 
 socket.on('esm_stats', function (data) {
     console.log(data);
+    if (statusType === 'Live') {
+        if (
+            data.retention === spans[defaultSpan].retention &&
+            data.interval === spans[defaultSpan].interval
+        ) {
+            var os = data.os;
+            var responses = data.responses;
 
-    if (
-        data.retention === spans[defaultSpan].retention &&
-        data.interval === spans[defaultSpan].interval
-    ) {
-        var os = data.os;
-        var responses = data.responses;
-
-        cpuStat.textContent = '0.0%';
-        if (os) {
-            cpuStat.textContent = os.cpu.toFixed(1) + '%';
-            cpuChart.data.datasets[0].data.push(os.cpu);
-            cpuChart.data.labels.push(os.timestamp);
-        }
-
-        memStat.textContent = '0.0MB';
-        if (os) {
-            memStat.textContent = os.memory.toFixed(1) + 'MB';
-            memChart.data.datasets[0].data.push(os.memory);
-            memChart.data.labels.push(os.timestamp);
-        }
-
-        loadStat.textContent = '0';
-        if (os) {
-            loadStat.textContent = os.load[0].toFixed(2);
-            loadChart.data.datasets[0].data.push(os.load[0]);
-            loadChart.data.labels.push(os.timestamp);
-        }
-
-        heapStat.textContent = '0';
-        if (os) {
-            heapStat.textContent = (os.heap.used_heap_size / 1024 / 1024).toFixed(1) + 'MB';
-            heapChart.data.datasets[0].data.push(os.heap.used_heap_size / 1024 / 1024);
-            heapChart.data.labels.push(os.timestamp);
-        }
-
-        eventLoopStat.textContent = '0';
-        if (os && os.loop) {
-            eventLoopStat.textContent = os.loop.sum.toFixed(2) + 'ms';
-            eventLoopChart.data.datasets[0].data.push(os.loop.sum);
-            eventLoopChart.data.labels.push(os.timestamp);
-        }
-
-        responseTimeStat.textContent = '0.00ms';
-        if (responses) {
-            responseTimeStat.textContent = responses.mean.toFixed(2) + 'ms';
-            responseTimeChart.data.datasets[0].data.push(responses.mean);
-            responseTimeChart.data.labels.push(responses.timestamp);
-        }
-
-        if (responses) {
-            var deltaTime = responses.timestamp - rpsChart.data.labels[rpsChart.data.labels.length - 1];
-
-            if (deltaTime < 1) deltaTime = 1000;
-            rpsStat.textContent = ((responses.count / deltaTime) * 1000).toFixed(2);
-            rpsChart.data.datasets[0].data.push((responses.count / deltaTime) * 1000);
-            rpsChart.data.labels.push(responses.timestamp);
-        }
-
-        if (responses) {
-            for (var i = 0; i < 4; i++) {
-                statusCodesChart.data.datasets[i].data.push(data.responses[i + 2]);
+            cpuStat.textContent = '0.0%';
+            if (os) {
+                cpuStat.textContent = os.cpu.toFixed(1) + '%';
+                cpuChart.data.datasets[0].data.push(os.cpu);
+                cpuChart.data.labels.push(os.timestamp);
             }
-            statusCodesChart.data.labels.push(data.responses.timestamp);
-        }
 
-        charts.forEach(function (chart) {
-            if (spans[defaultSpan].retention < chart.data.labels.length) {
-                chart.data.datasets.forEach(function (dataset) {
-                    dataset.data.shift();
-                });
-
-                chart.data.labels.shift();
+            memStat.textContent = '0.0MB';
+            if (os) {
+                memStat.textContent = os.memory.toFixed(1) + 'MB';
+                memChart.data.datasets[0].data.push(os.memory);
+                memChart.data.labels.push(os.timestamp);
             }
-            chart.update();
-        });
+
+            loadStat.textContent = '0';
+            if (os) {
+                loadStat.textContent = os.load[0].toFixed(2);
+                loadChart.data.datasets[0].data.push(os.load[0]);
+                loadChart.data.labels.push(os.timestamp);
+            }
+
+            heapStat.textContent = '0';
+            if (os) {
+                heapStat.textContent = (os.heap.used_heap_size / 1024 / 1024).toFixed(1) + 'MB';
+                heapChart.data.datasets[0].data.push(os.heap.used_heap_size / 1024 / 1024);
+                heapChart.data.labels.push(os.timestamp);
+            }
+
+            eventLoopStat.textContent = '0';
+            if (os && os.loop) {
+                eventLoopStat.textContent = os.loop.sum.toFixed(2) + 'ms';
+                eventLoopChart.data.datasets[0].data.push(os.loop.sum);
+                eventLoopChart.data.labels.push(os.timestamp);
+            }
+
+            responseTimeStat.textContent = '0.00ms';
+            if (responses) {
+                responseTimeStat.textContent = responses.mean.toFixed(2) + 'ms';
+                responseTimeChart.data.datasets[0].data.push(responses.mean);
+                responseTimeChart.data.labels.push(responses.timestamp);
+            }
+
+            if (responses) {
+                var deltaTime = responses.timestamp - rpsChart.data.labels[rpsChart.data.labels.length - 1];
+
+                if (deltaTime < 1) deltaTime = 1000;
+                rpsStat.textContent = ((responses.count / deltaTime) * 1000).toFixed(2);
+                rpsChart.data.datasets[0].data.push((responses.count / deltaTime) * 1000);
+                rpsChart.data.labels.push(responses.timestamp);
+            }
+
+            if (responses) {
+                for (var i = 0; i < 4; i++) {
+                    statusCodesChart.data.datasets[i].data.push(data.responses[i + 2]);
+                }
+                statusCodesChart.data.labels.push(data.responses.timestamp);
+            }
+
+            charts.forEach(function (chart) {
+                if (spans[defaultSpan].retention < chart.data.labels.length) {
+                    chart.data.datasets.forEach(function (dataset) {
+                        dataset.data.shift();
+                    });
+
+                    chart.data.labels.shift();
+                }
+                chart.update();
+            });
+        }
     }
+
 });
+
+
+var spanControlsType = document.getElementById('span-controls-type');
+
+var spanNode1 = document.createElement('span');
+var textNode1 = document.createTextNode("Live"); // eslint-disable-line
+var spanNode2 = document.createElement('span');
+var textNode2 = document.createTextNode("Periodical"); // eslint-disable-line
+
+spanNode1.appendChild(textNode1);
+spanNode2.appendChild(textNode2);
+spanNode1.setAttribute('id', 'Live');
+spanNode2.setAttribute('id', 'Periodical');
+spanNode1.onclick = e => {
+    onSpanChangeType(e, 'Live')
+};
+spanNode2.onclick = e => {
+    onSpanChangeType(e, 'Periodical')
+};
+spanControlsType.appendChild(spanNode1);
+spanControlsType.appendChild(spanNode2);
+spanControlsType.getElementsByTagName('span')[0].classList.add('active');
