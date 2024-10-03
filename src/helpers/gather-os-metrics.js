@@ -46,9 +46,10 @@ module.exports = (io, span, config) => {
 
       if (span.os.length >= span.retention) span.os.shift();
       if (span.responses[0] && span.responses.length > span.retention) span.responses.shift();
-
+      
       // Database logging
       if (stat.timestamp - lastDatabaseLog >= config.databaseLoggingInterval * 1000) {
+        console.log("inside writing stats to file")
         lastDatabaseLog = stat.timestamp;
         const databaseFile = path.resolve(config.databaseFile);
 
@@ -56,6 +57,7 @@ module.exports = (io, span, config) => {
         fs.readFile(databaseFile, 'utf8', (readErr, data) => {
           if (readErr) {
             debug('Error reading the JSON file:', readErr);
+            console.log('Error reading the JSON file:', readErr)
             return;
           }
 
@@ -65,6 +67,7 @@ module.exports = (io, span, config) => {
             jsonData = JSON.parse(data); // Parse existing data
           } catch (parseErr) {
             debug('Error parsing the JSON file:', parseErr);
+            console.log('Error parsing the JSON file:', parseErr);
             jsonData = {
               os: [],
               responses: [],
@@ -114,8 +117,12 @@ module.exports = (io, span, config) => {
           fs.writeFile(databaseFile, JSON.stringify(jsonData, null, 2), 'utf8', writeErr => {
             if (writeErr) {
               debug('Error writing to the JSON file:', writeErr);
+              console.log('Error writing to the JSON file:', writeErr);
+
             } else {
               debug('Successfully appended to the JSON file.');
+              console.log('Successfully appended to the JSON file.');
+
             }
           });
         });
